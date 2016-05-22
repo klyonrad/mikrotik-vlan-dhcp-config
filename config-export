@@ -1,0 +1,141 @@
+# may/22/2016 21:26:47 by RouterOS 6.34.2
+# software id = 5HNH-QANV
+#
+/interface bridge
+add admin-mac=E4:8D:8C:03:0C:62 auto-mac=no name=bridge-local
+add name=bridge-vlan200
+add name=bridge-vlan300
+/interface ethernet
+set [ find default-name=ether1 ] name=ether1-gateway speed=1Gbps
+set [ find default-name=ether2 ] l2mtu=1500
+set [ find default-name=ether7 ] name=ether7-gateway
+/interface wireless
+set [ find default-name=wlan1 ] band=2ghz-b/g/n channel-width=20/40mhz-Ce disabled=no distance=indoors \
+    frequency=auto mode=ap-bridge ssid=MikroTik-030C6B wireless-protocol=802.11
+/ip neighbor discovery
+set ether1-gateway discover=no
+set ether7-gateway discover=no
+/interface vlan
+add interface=ether10 name=eth10-vlan200 vlan-id=200
+add interface=ether10 name=eth10-vlan300 vlan-id=300
+/interface ethernet switch port
+set 7 default-vlan-id=2
+set 8 default-vlan-id=200
+set 9 default-vlan-id=300
+/ip hotspot profile
+add dns-name=google hotspot-address=192.168.180.1 login-by=trial name=hsprof1
+/ip pool
+add name=default-dhcp ranges=192.168.88.10-192.168.88.254
+add name=dhcp-pool-intern ranges=192.168.179.50-192.168.179.254
+add name=dhcp-pool-guest ranges=192.168.180.50-192.168.180.250
+/ip dhcp-server
+add address-pool=default-dhcp disabled=no interface=bridge-local name=default
+add address-pool=dhcp-pool-intern disabled=no interface=bridge-vlan200 lease-time=15m name=dhcp-vlan200
+add address-pool=dhcp-pool-guest disabled=no interface=bridge-vlan300 lease-time=15m name=dhcp-vlan300
+# DHCP server can not run on slave interface!
+add address-pool=dhcp-pool-guest disabled=no interface=eth10-vlan300 lease-time=1h name=dhcp1
+/ip hotspot user profile
+add address-pool=dhcp-pool-guest name=trial shared-users=unlimited transparent-proxy=yes
+/interface bridge port
+add bridge=bridge-local interface=ether2
+add bridge=bridge-local interface=ether6
+add bridge=bridge-local interface=sfp1
+add bridge=bridge-local interface=wlan1
+add bridge=bridge-vlan200 interface=ether3
+add bridge=bridge-vlan200 interface=ether4
+add bridge=bridge-vlan200 interface=ether5
+add bridge=bridge-vlan200 disabled=yes interface=ether7-gateway
+add bridge=bridge-vlan200 interface=ether8
+add bridge=bridge-vlan300 interface=ether9
+add bridge=bridge-vlan200
+add bridge=bridge-vlan200 interface=eth10-vlan200
+add bridge=bridge-vlan300 interface=eth10-vlan300
+/interface bridge settings
+set use-ip-firewall=yes use-ip-firewall-for-vlan=yes
+/ip settings
+set icmp-rate-limit=30 route-cache=no
+/interface ethernet switch vlan
+add disabled=yes ports=ether8,ether10 switch=switch2 vlan-id=2
+add disabled=yes ports=ether10,ether9 switch=switch2 vlan-id=3
+add disabled=yes ports=ether8,ether10,ether7-gateway switch=switch2 vlan-id=200
+/ip address
+add address=192.168.88.1/24 comment="default configuration" interface=bridge-local network=192.168.88.0
+add address=192.168.179.1/24 comment="internal network" interface=bridge-vlan200 network=192.168.179.0
+add address=192.168.180.1/24 comment="guest network" interface=bridge-vlan300 network=192.168.180.0
+add address=192.168.180.1/24 comment="hotspot network" interface=eth10-vlan300 network=192.168.180.0
+/ip dhcp-client
+add comment="default configuration" dhcp-options=hostname,clientid disabled=no interface=ether7-gateway
+/ip dhcp-server config
+set store-leases-disk=10m
+/ip dhcp-server network
+add address=192.168.88.0/24 comment="default configuration" dns-server=8.8.8.8 gateway=192.168.88.1
+add address=192.168.179.0/24 comment="internal net" dns-server=8.8.8.8 gateway=192.168.179.1
+add address=192.168.180.0/24 comment="guest net" dns-server=8.8.8.8 gateway=192.168.180.1 netmask=24
+/ip dns
+set allow-remote-requests=yes servers=8.8.8.8
+/ip dns static
+add address=192.168.88.1 name=router
+/ip firewall filter
+add chain=input comment="default configuration" protocol=icmp
+add chain=input comment="default configuration" connection-state=established,related
+add action=fasttrack-connection chain=forward comment="default configuration" connection-state=\
+    established,related
+add chain=forward comment="default configuration" connection-state=established,related
+add action=drop chain=forward comment="default configuration" connection-state=invalid disabled=yes
+add action=drop chain=forward comment="default configuration" connection-nat-state=!dstnat \
+    connection-state=new in-interface=ether1-gateway
+add action=drop chain=mychain comment="guest network restriction" out-interface=!ether7-gateway
+add chain=mychain src-address=1.1.1.2
+add chain=input comment="allow router managing from WAN. For Home Lab" in-interface=ether7-gateway
+add chain=input comment="bridge-local ist management bridge" in-interface=bridge-local
+add chain=input comment="allow management from internal VLAN" in-interface=bridge-vlan200
+add action=drop chain=input comment="Drop everything else"
+/ip firewall nat
+add action=masquerade chain=srcnat comment="default configuration" out-interface=ether7-gateway
+/ip hotspot user
+add name=admin
+/ip route
+add disabled=yes distance=1 gateway=ether7-gateway
+add distance=1 dst-address=192.168.178.0/24 gateway=ether7-gateway
+/ip route rule
+add action=unreachable comment="guest network restrict " disabled=yes dst-address=192.168.179.0/24 \
+    interface=bridge-vlan300
+add action=drop comment="guest network disallow router" disabled=yes dst-address=192.168.180.1/32
+add action=unreachable comment="guest network disallow zyxel and other internal stuff" disabled=yes \
+    dst-address=192.168.178.0/24 interface=bridge-vlan300
+add disabled=yes interface=*F table=main
+/lcd interface pages
+set 0 interfaces=\
+    sfp1,ether1-gateway,ether2,ether3,ether4,ether5,ether6,ether7-gateway,ether8,ether9,ether10
+/system clock
+set time-zone-name=Europe/Berlin
+/system routerboard settings
+set protected-routerboot=disabled silent-boot=yes
+/tool mac-server
+set [ find default=yes ] disabled=yes
+add interface=ether2
+add interface=ether3
+add interface=ether4
+add interface=ether5
+add interface=ether6
+add interface=ether7-gateway
+add interface=ether8
+add interface=ether9
+add interface=ether10
+add interface=sfp1
+add interface=wlan1
+add interface=bridge-local
+/tool mac-server mac-winbox
+set [ find default=yes ] disabled=yes
+add interface=ether2
+add interface=ether3
+add interface=ether4
+add interface=ether5
+add interface=ether6
+add interface=ether7-gateway
+add interface=ether8
+add interface=ether9
+add interface=ether10
+add interface=sfp1
+add interface=wlan1
+add interface=bridge-local
