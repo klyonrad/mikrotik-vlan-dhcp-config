@@ -1,4 +1,4 @@
-# may/22/2016 21:26:47 by RouterOS 6.34.2
+# may/22/2016 22:15:48 by RouterOS 6.34.2
 # software id = 5HNH-QANV
 #
 /interface bridge
@@ -80,16 +80,18 @@ add chain=input comment="default configuration" protocol=icmp
 add chain=input comment="default configuration" connection-state=established,related
 add action=fasttrack-connection chain=forward comment="default configuration" connection-state=\
     established,related
-add chain=forward comment="default configuration" connection-state=established,related
+add chain=forward comment="default configuration" connection-state=established,related disabled=yes
 add action=drop chain=forward comment="default configuration" connection-state=invalid disabled=yes
 add action=drop chain=forward comment="default configuration" connection-nat-state=!dstnat \
     connection-state=new in-interface=ether1-gateway
-add action=drop chain=mychain comment="guest network restriction" out-interface=!ether7-gateway
-add chain=mychain src-address=1.1.1.2
+add action=reject chain=forward comment="guest network restriction" in-interface=bridge-vlan300 \
+    out-interface=!ether7-gateway reject-with=icmp-net-prohibited
 add chain=input comment="allow router managing from WAN. For Home Lab" in-interface=ether7-gateway
 add chain=input comment="bridge-local ist management bridge" in-interface=bridge-local
 add chain=input comment="allow management from internal VLAN" in-interface=bridge-vlan200
 add action=drop chain=input comment="Drop everything else"
+add action=reject chain=forward comment="guest net restriction" in-interface=bridge-vlan300 reject-with=\
+    icmp-net-prohibited src-address=192.168.1.0/24
 /ip firewall nat
 add action=masquerade chain=srcnat comment="default configuration" out-interface=ether7-gateway
 /ip hotspot user
