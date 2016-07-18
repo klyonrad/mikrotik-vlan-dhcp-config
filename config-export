@@ -1,4 +1,4 @@
-# may/22/2016 22:15:48 by RouterOS 6.34.2
+# jul/18/2016 21:59:25 by RouterOS 6.34.2
 # software id = 5HNH-QANV
 #
 /interface bridge
@@ -21,8 +21,6 @@ add interface=ether10 name=eth10-vlan300 vlan-id=300
 set 7 default-vlan-id=2
 set 8 default-vlan-id=200
 set 9 default-vlan-id=300
-/ip hotspot profile
-add dns-name=google hotspot-address=192.168.180.1 login-by=trial name=hsprof1
 /ip pool
 add name=default-dhcp ranges=192.168.88.10-192.168.88.254
 add name=dhcp-pool-intern ranges=192.168.179.50-192.168.179.254
@@ -31,10 +29,14 @@ add name=dhcp-pool-guest ranges=192.168.180.50-192.168.180.250
 add address-pool=default-dhcp disabled=no interface=bridge-local name=default
 add address-pool=dhcp-pool-intern disabled=no interface=bridge-vlan200 lease-time=15m name=dhcp-vlan200
 add address-pool=dhcp-pool-guest disabled=no interface=bridge-vlan300 lease-time=15m name=dhcp-vlan300
-# DHCP server can not run on slave interface!
-add address-pool=dhcp-pool-guest disabled=no interface=eth10-vlan300 lease-time=1h name=dhcp1
+add address-pool=dhcp-pool-guest interface=eth10-vlan300 lease-time=1h name=dhcp1
 /ip hotspot user profile
 add address-pool=dhcp-pool-guest name=trial shared-users=unlimited transparent-proxy=yes
+/ip hotspot profile
+add hotspot-address=192.168.180.1 html-directory="" login-by=http-chap,http-pap,trial name=hsprof1 \
+    trial-user-profile=trial
+/ip hotspot
+add address-pool=dhcp-pool-guest idle-timeout=none interface=bridge-vlan300 name=server1 profile=hsprof1
 /interface bridge port
 add bridge=bridge-local interface=ether2
 add bridge=bridge-local interface=ether6
@@ -78,12 +80,13 @@ set allow-remote-requests=yes servers=8.8.8.8
 /ip dns static
 add address=192.168.88.1 name=router
 /ip firewall filter
+add action=passthrough chain=unused-hs-chain comment="place hotspot rules here" disabled=yes
 add chain=input comment="default configuration" protocol=icmp
 add chain=input comment="default configuration" connection-state=established,related
 add action=fasttrack-connection chain=forward comment="default configuration" connection-state=\
     established,related
 add chain=forward comment="default configuration" connection-state=established,related disabled=yes
-add action=drop chain=forward comment="default configuration" connection-state=invalid disabled=yes
+add action=drop chain=forward comment="default configuration" connection-state=invalid
 add action=drop chain=forward comment="default configuration" connection-nat-state=!dstnat \
     connection-state=new disabled=yes in-interface=ether1-gateway
 add action=reject chain=forward comment="guest network restriction" in-interface=bridge-vlan300 \
@@ -91,15 +94,25 @@ add action=reject chain=forward comment="guest network restriction" in-interface
 add chain=input comment="bridge-local ist management bridge" in-interface=bridge-local
 add chain=input comment="allow management from internal VLAN" in-interface=bridge-vlan200
 add action=drop chain=input comment="Drop everything else"
-add action=reject chain=forward comment="guest net restriction" in-interface=bridge-vlan300 reject-with=\
-    icmp-net-prohibited src-address=192.168.1.0/24
+add action=reject chain=forward comment="guest net restriction" disabled=yes in-interface=bridge-vlan300 \
+    reject-with=icmp-net-prohibited
+add action=reject chain=forward comment="forbid guests access to zyxel network" dst-address=\
+    192.168.178.0/24 in-interface=bridge-vlan300 reject-with=icmp-net-prohibited
+add chain=forward comment="allow internal net anything" in-interface=bridge-vlan200
+add chain=forward comment="allow port2 anything" in-interface=bridge-local
+add chain=forward comment="allow guest-net access to internet" dst-address=!192.168.0.0/16 in-interface=\
+    bridge-vlan300
+add action=reject chain=forward comment="forbid guest net access to internal net" in-interface=\
+    bridge-vlan300 out-interface=bridge-vlan200 reject-with=icmp-net-prohibited
+add chain=forward comment="allow access from zyxel net" src-address=192.168.178.0/24
 /ip firewall nat
-add action=masquerade chain=srcnat comment="default configuration" out-interface=ether7-gateway
+add action=passthrough chain=unused-hs-chain comment="place hotspot rules here" disabled=yes
+add action=masquerade chain=srcnat comment="default configuration" out-interface=ether1-gateway
 /ip hotspot user
 add name=admin
 /ip route
-add disabled=yes distance=1 gateway=ether7-gateway
-add distance=1 dst-address=192.168.178.0/24 gateway=ether7-gateway
+add disabled=yes distance=1 gateway=ether7
+add distance=1 dst-address=192.168.178.0/24 gateway=ether7
 /ip route rule
 add action=unreachable comment="guest network restrict " disabled=yes dst-address=192.168.179.0/24 \
     interface=bridge-vlan300
