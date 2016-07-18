@@ -8,13 +8,12 @@ add name=bridge-vlan300
 /interface ethernet
 set [ find default-name=ether1 ] name=ether1-gateway speed=1Gbps
 set [ find default-name=ether2 ] l2mtu=1500
-set [ find default-name=ether7 ] name=ether7-gateway
 /interface wireless
 set [ find default-name=wlan1 ] band=2ghz-b/g/n channel-width=20/40mhz-Ce disabled=no distance=indoors \
     frequency=auto mode=ap-bridge ssid=MikroTik-030C6B wireless-protocol=802.11
 /ip neighbor discovery
 set ether1-gateway discover=no
-set ether7-gateway discover=no
+set ether7 discover=no
 /interface vlan
 add interface=ether10 name=eth10-vlan200 vlan-id=200
 add interface=ether10 name=eth10-vlan300 vlan-id=300
@@ -44,12 +43,13 @@ add bridge=bridge-local interface=wlan1
 add bridge=bridge-vlan200 interface=ether3
 add bridge=bridge-vlan200 interface=ether4
 add bridge=bridge-vlan200 interface=ether5
-add bridge=bridge-vlan200 disabled=yes interface=ether7-gateway
+add bridge=bridge-vlan200 interface=ether7
 add bridge=bridge-vlan200 interface=ether8
 add bridge=bridge-vlan300 interface=ether9
 add bridge=bridge-vlan200
 add bridge=bridge-vlan200 interface=eth10-vlan200
 add bridge=bridge-vlan300 interface=eth10-vlan300
+add bridge=bridge-vlan200 disabled=yes interface=ether1-gateway
 /interface bridge settings
 set use-ip-firewall=yes use-ip-firewall-for-vlan=yes
 /ip settings
@@ -57,16 +57,18 @@ set icmp-rate-limit=30 route-cache=no
 /interface ethernet switch vlan
 add disabled=yes ports=ether8,ether10 switch=switch2 vlan-id=2
 add disabled=yes ports=ether10,ether9 switch=switch2 vlan-id=3
-add disabled=yes ports=ether8,ether10,ether7-gateway switch=switch2 vlan-id=200
+add disabled=yes ports=ether8,ether10,ether7 switch=switch2 vlan-id=200
 /ip address
 add address=192.168.88.1/24 comment="default configuration" interface=bridge-local network=192.168.88.0
 add address=192.168.179.1/24 comment="internal network" interface=bridge-vlan200 network=192.168.179.0
 add address=192.168.180.1/24 comment="guest network" interface=bridge-vlan300 network=192.168.180.0
 add address=192.168.180.1/24 comment="hotspot network" interface=eth10-vlan300 network=192.168.180.0
 /ip dhcp-client
-add comment="default configuration" dhcp-options=hostname,clientid disabled=no interface=ether7-gateway
+add comment="default configuration" dhcp-options=hostname,clientid disabled=no interface=ether1-gateway
 /ip dhcp-server config
 set store-leases-disk=10m
+/ip dhcp-server lease
+add address=192.168.179.254 client-id=1:ac:87:a3:11:6:6b mac-address=AC:87:A3:11:06:6B server=dhcp-vlan200
 /ip dhcp-server network
 add address=192.168.88.0/24 comment="default configuration" dns-server=8.8.8.8 gateway=192.168.88.1
 add address=192.168.179.0/24 comment="internal net" dns-server=8.8.8.8 gateway=192.168.179.1
@@ -83,10 +85,9 @@ add action=fasttrack-connection chain=forward comment="default configuration" co
 add chain=forward comment="default configuration" connection-state=established,related disabled=yes
 add action=drop chain=forward comment="default configuration" connection-state=invalid disabled=yes
 add action=drop chain=forward comment="default configuration" connection-nat-state=!dstnat \
-    connection-state=new in-interface=ether1-gateway
+    connection-state=new disabled=yes in-interface=ether1-gateway
 add action=reject chain=forward comment="guest network restriction" in-interface=bridge-vlan300 \
-    out-interface=!ether7-gateway reject-with=icmp-net-prohibited
-add chain=input comment="allow router managing from WAN. For Home Lab" in-interface=ether7-gateway
+    out-interface=!ether1-gateway reject-with=icmp-net-prohibited
 add chain=input comment="bridge-local ist management bridge" in-interface=bridge-local
 add chain=input comment="allow management from internal VLAN" in-interface=bridge-vlan200
 add action=drop chain=input comment="Drop everything else"
@@ -107,8 +108,7 @@ add action=unreachable comment="guest network disallow zyxel and other internal 
     dst-address=192.168.178.0/24 interface=bridge-vlan300
 add disabled=yes interface=*F table=main
 /lcd interface pages
-set 0 interfaces=\
-    sfp1,ether1-gateway,ether2,ether3,ether4,ether5,ether6,ether7-gateway,ether8,ether9,ether10
+set 0 interfaces=sfp1,ether1-gateway,ether2,ether3,ether4,ether5,ether6,ether7,ether8,ether9,ether10
 /system clock
 set time-zone-name=Europe/Berlin
 /system routerboard settings
@@ -120,7 +120,7 @@ add interface=ether3
 add interface=ether4
 add interface=ether5
 add interface=ether6
-add interface=ether7-gateway
+add interface=ether7
 add interface=ether8
 add interface=ether9
 add interface=ether10
@@ -134,7 +134,7 @@ add interface=ether3
 add interface=ether4
 add interface=ether5
 add interface=ether6
-add interface=ether7-gateway
+add interface=ether7
 add interface=ether8
 add interface=ether9
 add interface=ether10
