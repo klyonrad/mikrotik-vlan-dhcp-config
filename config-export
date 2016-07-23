@@ -1,4 +1,4 @@
-# jul/18/2016 21:59:25 by RouterOS 6.34.2
+# jul/18/2016 22:26:15 by RouterOS 6.34.2
 # software id = 5HNH-QANV
 #
 /interface bridge
@@ -9,8 +9,8 @@ add name=bridge-vlan300
 set [ find default-name=ether1 ] name=ether1-gateway speed=1Gbps
 set [ find default-name=ether2 ] l2mtu=1500
 /interface wireless
-set [ find default-name=wlan1 ] band=2ghz-b/g/n channel-width=20/40mhz-Ce disabled=no distance=indoors \
-    frequency=auto mode=ap-bridge ssid=MikroTik-030C6B wireless-protocol=802.11
+set [ find default-name=wlan1 ] band=2ghz-b/g/n channel-width=20/40mhz-Ce distance=indoors frequency=auto \
+    mode=ap-bridge ssid=MikroTik-030C6B wireless-protocol=802.11
 /ip neighbor discovery
 set ether1-gateway discover=no
 set ether7 discover=no
@@ -87,8 +87,8 @@ add action=fasttrack-connection chain=forward comment="default configuration" co
     established,related
 add chain=forward comment="default configuration" connection-state=established,related disabled=yes
 add action=drop chain=forward comment="default configuration" connection-state=invalid
-add action=drop chain=forward comment="default configuration" connection-nat-state=!dstnat \
-    connection-state=new disabled=yes in-interface=ether1-gateway
+add action=drop chain=forward comment="default configuration" connection-nat-state=!dstnat connection-state=\
+    new disabled=yes in-interface=ether1-gateway
 add action=reject chain=forward comment="guest network restriction" in-interface=bridge-vlan300 \
     out-interface=!ether1-gateway reject-with=icmp-net-prohibited
 add chain=input comment="bridge-local ist management bridge" in-interface=bridge-local
@@ -96,8 +96,8 @@ add chain=input comment="allow management from internal VLAN" in-interface=bridg
 add action=drop chain=input comment="Drop everything else"
 add action=reject chain=forward comment="guest net restriction" disabled=yes in-interface=bridge-vlan300 \
     reject-with=icmp-net-prohibited
-add action=reject chain=forward comment="forbid guests access to zyxel network" dst-address=\
-    192.168.178.0/24 in-interface=bridge-vlan300 reject-with=icmp-net-prohibited
+add action=reject chain=forward comment="forbid guests access to zyxel network" dst-address=192.168.178.0/24 \
+    in-interface=bridge-vlan300 reject-with=icmp-net-prohibited
 add chain=forward comment="allow internal net anything" in-interface=bridge-vlan200
 add chain=forward comment="allow port2 anything" in-interface=bridge-local
 add chain=forward comment="allow guest-net access to internet" dst-address=!192.168.0.0/16 in-interface=\
